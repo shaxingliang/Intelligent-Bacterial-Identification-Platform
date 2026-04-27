@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>细菌形态学观察 | 智能鉴定系统</title>
+    <!-- 主程序原有样式（完全保留） -->
+    <style>
+        /* ----- 主程序原有样式 智能鉴定专家系统 完全保留  ----- */
+        :root {
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --success: #059669;
+            --bg-color: #f0f4f8;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        /* 顶部导航 */
+        .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
+        .app-title { font-size: 1.8rem; font-weight: bold; color: #0f172a; margin: 0; }
+        .developer-badge { background: #1e293b; color: #fff; padding: 6px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
+        /* 主体布局 */
+        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex: 1; width: 100%; }
+        @media (max-width: 850px) { .container { grid-template-columns: 1fr; } }
+
+        .card { background: var(--card-bg); padding: 24px; border-radius: 16px; box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.8); }
+        .card-title { font-size: 1.25rem; font-weight: 600; border-bottom: 2px solid var(--primary); padding-bottom: 12px; margin-top: 0; margin-bottom: 20px; color: #1e293b; }
+
+        /* 图像视口 (支持交互) */
+        .viewer-container { border: 2px dashed #94a3b8; border-radius: 12px; height: 350px; background: #e2e8f0; position: relative; overflow: hidden; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        .viewer-container.has-image { border-style: solid; border-color: var(--border); background: #0f172a; cursor: grab; }
+        .viewer-container.picker-mode { cursor: crosshair !important; }
+        #uploadHint { text-align: center; color: #64748b; pointer-events: none; }
+        #imgWrapper { position: absolute; transform-origin: center center; display: none; }
+        #previewImg { max-width: none; max-height: none; display: block; user-select: none; pointer-events: auto; }
+
+        /* 工具栏 */
+        .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;}
+        .btn-icon { background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+        .btn-icon:hover { background: #e2e8f0; }
+        .btn-icon.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .zoom-slider { flex: 1; min-width: 100px; accent-color: var(--primary); }
+
+        /* 表单与状态 */
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.95rem; color: #334155; }
+        select, input[type="number"] { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 1rem; outline: none; }
+        select:focus, input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2); }
+        .input-row { display: flex; gap: 12px; }
+        .input-row > div { flex: 1; }
+
+        .btn-primary { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2); }
+
+        .status-bar { padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; background: #f1f5f9; color: var(--text-muted); margin-bottom: 16px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .color-patch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 4px rgba(0,0,0,0.3); display: none; }
+        .warning-msg { color: #ef4444; font-size: 0.85rem; font-weight: bold; margin-top: 5px; display: none; }
+
+        /* 结果展示区 */
+        .result-item { background: #fff; border: 1px solid var(--border); padding: 16px; border-radius: 12px; margin-bottom: 16px; transition: 0.3s; }
+        .result-item:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 8px 15px -3px rgba(0,0,0,0.1); }
+        .result-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .bac-name { font-size: 1.15rem; font-weight: bold; color: var(--text-main); margin-bottom: 8px; }
+        .score-text { font-size: 1.2rem; font-weight: 800; color: var(--success); text-align: right; }
+        .bac-details { font-size: 0.9rem; color: #475569; background: #f8fafc; padding: 10px; border-radius: 8px; line-height: 1.5; border-left: 4px solid var(--primary); }
+        .tag { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; margin-right: 6px; margin-bottom: 4px; }
+        .tag-g-pos { background: #ede9fe; color: #8b5cf6; }
+        .tag-g-neg { background: #fee2e2; color: #ef4444; }
+
+        /* 底部声明 */
+        .footer { text-align: center; padding: 20px; color: #94a3b8; font-size: 0.9rem; letter-spacing: 1px; margin-top: 20px; }
+
+        /* 打印样式 */
+        @media print {
+            body { background: white; padding: 0; display: block; }
+            .top-nav, .toolbar, .viewer-container, .btn-primary, button, .footer { display: none !important; }
+            .container { display: block; }
+            .card { border: none; box-shadow: none; padding: 0; margin-bottom: 20px; }
+            .card-title { border-bottom: 1px solid #000; }
+        }
+    </style>
+
+    <!-- 登录相关样式 (启动动画+登录卡片，不影响主程序样式) -->
+    <style>
+        /* ========== 启动界面 (3秒科技感，细菌主题) ========== */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 30% 50%, #0b1a2e, #02060c);
+            z-index: 20000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.8s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .splash-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .microbe-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .bacteria-particle {
+            position: absolute;
+            background: radial-gradient(circle, #2ecc71, #1e8449);
+            border-radius: 60% 40% 50% 50%;
+            opacity: 0.4;
+            filter: blur(4px);
+            animation: floatBacteria 14s infinite alternate ease-in-out;
+        }
+
+        .bac-rod {
+            position: absolute;
+            background: linear-gradient(145deg, #58d68d, #229954);
+            border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+            transform: rotate(25deg);
+            filter: blur(3px);
+            opacity: 0.35;
+            animation: swimRod 18s infinite alternate;
+        }
+
+        @keyframes floatBacteria {
+            0% { transform: translateY(0px) translateX(0px) scale(1) rotate(0deg); opacity: 0.2; }
+            100% { transform: translateY(-40px) translateX(30px) scale(1.3) rotate(15deg); opacity: 0.6; }
+        }
+
+        @keyframes swimRod {
+            0% { transform: translateX(0) translateY(0) rotate(20deg); opacity: 0.2; }
+            100% { transform: translateX(-50px) translateY(-60px) rotate(70deg); opacity: 0.5; }
+        }
+
+        .lens-flare {
+            position: absolute;
+            width: 150%;
+            height: 150%;
+            background: radial-gradient(circle, rgba(46,204,113,0.15), transparent 70%);
+            top: -25%;
+            left: -25%;
+            animation: rotateLens 25s infinite linear;
+        }
+
+        @keyframes rotateLens {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .splash-hero {
+            position: relative;
+            z-index: 20;
+            text-align: center;
+            animation: gentlePulse 2.8s infinite alternate;
+        }
+
+        @keyframes gentlePulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.02); }
+        }
+
+        .splash-title {
+            font-size: clamp(36px, 8vw, 64px);
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            background: linear-gradient(135deg, #fff, #a3e4d7, #2ecc71);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .splash-sub {
+            font-size: clamp(18px, 4vw, 28px);
+            font-weight: 500;
+            color: #b9f6ca;
+            letter-spacing: 2px;
+            backdrop-filter: blur(3px);
+        }
+
+        .splash-micro {
+            font-size: 1.2rem;
+            font-weight: 400;
+            color: #7fdb9a;
+            margin: 20px 0 8px;
+        }
+
+        .splash-underline {
+            width: 60%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #2ecc71, #1abc9c, transparent);
+            margin: 16px auto 0;
+            border-radius: 4px;
+            animation: breathLine 2.4s infinite;
+        }
+
+        @keyframes breathLine {
+            0% { width: 30%; opacity: 0.4; }
+            50% { width: 80%; opacity: 1; }
+            100% { width: 30%; opacity: 0.4; }
+        }
+
+        .splash-dots {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 35px 0 15px;
+        }
+
+        .splash-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2ecc71;
+            animation: dotBlink 1.8s infinite alternate;
+        }
+
+        .splash-dots span:nth-child(2) { background: #1abc9c; animation-delay: 0.3s; }
+        .splash-dots span:nth-child(3) { background: #27ae60; animation-delay: 0.6s; }
+
+        @keyframes dotBlink {
+            0% { transform: scale(0.6); opacity: 0.3; }
+            100% { transform: scale(1.4); opacity: 1; }
+        }
+
+        .splash-footer {
+            position: absolute;
+            bottom: 5%;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            color: #8fbb9c;
+            letter-spacing: 1px;
+            z-index: 20;
+        }
+
+        /* 登录卡片层 */
+        .login-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(ellipse at 40% 45%, #0c1a24, #03070f);
+            z-index: 15000;
+            opacity: 0;
+            transition: opacity 0.9s ease;
+            pointer-events: none;
+        }
+
+        .login-container.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .login-card {
+            background: rgba(20, 35, 45, 0.7);
+            backdrop-filter: blur(14px);
+            border-radius: 48px;
+            padding: 42px 36px;
+            width: 100%;
+            max-width: 440px;
+            border: 1px solid rgba(46, 204, 113, 0.5);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(46, 204, 113, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .login-title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff, #a3e4d7, #2ecc71);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: 16px 0 6px;
+        }
+
+        .login-sub {
+            font-size: 14px;
+            color: #b0dfc5;
+            letter-spacing: 1px;
+        }
+
+        .input-group {
+            margin-bottom: 28px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #c0e0d0;
+            font-size: 13px;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid #2e6b47;
+            padding: 14px 20px;
+            border-radius: 60px;
+            font-size: 15px;
+            color: #f0fff4;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .input-group input:focus {
+            border-color: #2ecc71;
+            box-shadow: 0 0 12px rgba(46, 204, 113, 0.4);
+        }
+
+        .login-btn {
+            background: linear-gradient(95deg, #1e8449, #2ecc71);
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 60px;
+            font-weight: 700;
+            font-size: 16px;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(46, 204, 113, 0.4);
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 32px;
+            font-size: 11px;
+            color: #98b7a8;
+            border-top: 1px solid rgba(46, 204, 113, 0.3);
+            padding-top: 18px;
+        }
+
+        .dev-info {
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #d0f0df;
+            margin-bottom: 6px;
+        }
+
+        .research-note {
+            font-size: 10px;
+            color: #8fbb9c;
+        }
+
+        /* 主程序包裹容器，登录成功前隐藏 */
+        .main-app-wrapper {
+            display: none;
+            width: 100%;
+        }
+        .main-app-wrapper.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 启动画面 (3秒展示) -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="microbe-bg">
+            <div class="bacteria-particle" style="width: 70px; height: 70px; top: 15%; left: 10%; animation-duration: 12s;"></div>
+            <div class="bacteria-particle" style="width: 45px; height: 45px; top: 65%; left: 85%; animation-duration: 9s; background: radial-gradient(circle, #1abc9c, #0e6655);"></div>
+            <div class="bac-rod" style="width: 55px; height: 28px; top: 40%; left: 20%;"></div>
+            <div class="bac-rod" style="width: 70px; height: 32px; top: 75%; left: 45%; animation-duration: 20s;"></div>
+            <div class="bacteria-particle" style="width: 30px; height: 30px; top: 25%; left: 70%; background: radial-gradient(circle, #f4d03f, #b7950b); filter: blur(5px);"></div>
+            <div class="lens-flare"></div>
+        </div>
+        <div class="splash-hero">
+            <div class="splash-icon">
+                <svg width="64" height="64" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="24" cy="24" r="14" stroke="#2ecc71" stroke-width="1.5" stroke-dasharray="3 3">
+                        <animate attributeName="r" values="13;16;13" dur="2.2s" repeatCount="indefinite" />
+                    </circle>
+                    <path d="M24 8 L24 40 M8 24 L40 24" stroke="#a3e4d7" stroke-width="1.2" opacity="0.6" />
+                    <circle cx="24" cy="24" r="4" fill="#2ecc71" fill-opacity="0.7">
+                        <animate attributeName="r" values="3;5;3" dur="1.6s" repeatCount="indefinite" />
+                    </circle>
+                    <path d="M12 12 L36 36 M12 36 L36 12" stroke="#1abc9c" stroke-width="1" opacity="0.5" />
+                </svg>
+            </div>
+            <div class="splash-title">BACTERIAL MORPHOLOGY</div>
+            <div class="splash-sub">智能鉴定专家系统</div>
+            <div class="splash-micro">🔬 革兰氏染色 | 显微分析 | 智能比对</div>
+            <div class="splash-dots"><span></span><span></span><span></span></div>
+            <div class="splash-underline"></div>
+        </div>
+        <div class="splash-footer">沙兴良 · 微生物智能实验室 | 细菌鉴定平台</div>
+    </div>
+
+    <!-- 登录卡片层 (密码 SXL1224) -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-card">
+            <div class="login-logo">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 6 L28 12 L24 18 L20 12 L24 6Z" fill="#2ecc71" />
+                    <circle cx="24" cy="28" r="10" stroke="#1abc9c" stroke-width="1.5" stroke-dasharray="2 2" />
+                    <circle cx="24" cy="28" r="4" fill="#2ecc71" />
+                    <path d="M10 42 L38 42" stroke="#a3e4d7" stroke-width="1.2" />
+                </svg>
+                <div class="login-title">智能鉴定专家系统</div>
+                <div class="login-sub">Intelligent Identification · 授权登录</div>
+            </div>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label>🔐 安全密钥</label>
+                    <input type="password" id="passwordInput" placeholder="请输入访问密码" autocomplete="off">
+                </div>
+                <button type="submit" class="login-btn">进入鉴定系统 →</button>
+            </form>
+            <div class="login-footer">
+                <div class="dev-info">开发者：沙兴良  |  细菌形态学精准鉴定</div>
+                <div class="research-note">本系统仅供科研教学使用</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主程序完整内容 (原细菌显微特征比对系统) -->
+    <div class="main-app-wrapper" id="mainAppWrapper">
+        <div class="top-nav">
+            <h1 class="app-title">🔬 细菌鉴定专家系统 Pro</h1>
+            <div class="developer-badge">开发者：沙兴良</div>
+        </div>
+
+        <div class="container">
+            <div class="card">
+                <h2 class="card-title">🔍 1. 显微图像分析台</h2>
+                
+                <div class="viewer-container" id="viewerContainer" onclick="handleViewerClick(event)">
+                    <div id="uploadHint">
+                        <div style="font-size: 2rem; margin-bottom: 10px;">📸</div>
+                        点击上传显微镜图片<br><span style="font-size: 0.8rem; color: #94a3b8;">支持滚轮缩放、拖拽平移与定点拾色</span>
+                    </div>
+                    <div id="imgWrapper">
+                        <img id="previewImg" alt="显微图" ondragstart="return false">
+                    </div>
+                </div>
+                <input type="file" id="fileInput" hidden accept="image/*" onchange="handleImage(event)">
+
+                <div class="toolbar" id="toolbar" style="opacity: 0.5; pointer-events: none;">
+                    <button class="btn-icon" onclick="document.getElementById('fileInput').click()">📁 换图</button>
+                    <button class="btn-icon" onclick="changeZoom(-0.2)">➖</button>
+                    <input type="range" class="zoom-slider" id="zoomSlider" min="0.1" max="5" step="0.1" value="1" oninput="setZoom(this.value)">
+                    <button class="btn-icon" onclick="changeZoom(0.2)">➕</button>
+                    <button class="btn-icon" onclick="resetView()">🔄 复位</button>
+                    <button class="btn-icon" id="pickerBtn" onclick="togglePickerMode()" style="margin-left: auto;">🎯 定点拾色</button>
+                </div>
+
+                <div class="form-group">
+                    <label>染色属性 (系统自动识别/支持手动)</label>
+                    <div id="colorIndicator" class="status-bar">
+                        <div class="color-patch" id="colorPatch"></div>
+                        <span id="colorText">请先上传图片</span>
+                    </div>
+                    <select id="detectedGram">
+                        <option value="">-- 手动确认革兰氏属性 --</option>
+                        <option value="G+">革兰氏阳性 (G+) - 紫/蓝</option>
+                        <option value="G-">革兰氏阴性 (G-) - 红/粉</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>镜下形态校准</label>
+                    <select id="inputMorph">
+                        <option value="coccus">球菌 (Coccus)</option>
+                        <option value="bacillus">杆菌 (Bacillus)</option>
+                        <option value="diplococcus">双球菌 (Diplococcus)</option>
+                        <option value="vibrio">弧菌 (Vibrio)</option>
+                        <option value="chain">链球菌 (Chained Cocci)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>实测尺寸 (µm)</label>
+                    <div class="input-row">
+                        <div><input type="number" id="inputWidth" placeholder="宽/直径" step="0.1" oninput="checkSizeWarning()"></div>
+                        <div><input type="number" id="inputLength" placeholder="长(球菌可留空)" step="0.1" oninput="checkSizeWarning()"></div>
+                    </div>
+                    <div id="sizeWarning" class="warning-msg">⚠️ 警告：数值异常，请确认单位是否为微米(µm)！</div>
+                </div>
+
+                <button class="btn-primary" onclick="startComparison()">启动智能比对分析</button>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 12px; margin-bottom: 20px;">
+                    <h2 class="card-title" style="border: none; margin: 0; padding: 0;">📋 2. 鉴定报告</h2>
+                    <button id="printBtn" class="btn-icon" style="background: #1e293b; color: white; border: none;" onclick="window.print()" disabled>🖨️ 打印报告</button>
+                </div>
+                
+                <div id="resultList">
+                    <div style="text-align: center; color: #94a3b8; padding: 40px 20px;">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">📊</div>
+                        等待录入数据并生成比对报告
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            ⚠️ 声明：本平台仅供科研使用，具体结果请结合专业判断。
+        </div>
+
+        <canvas id="calcCanvas" style="display:none;"></canvas>
+    </div>
+
+    <script>
+        // ========= 登录流控制：3秒启动界面 → 登录卡片 → 密码验证通过后显示主程序 =========
+        (function() {
+            const splash = document.getElementById('splashScreen');
+            const loginContainer = document.getElementById('loginContainer');
+            const mainWrapper = document.getElementById('mainAppWrapper');
+            const loginForm = document.getElementById('loginForm');
+            const pwdInput = document.getElementById('passwordInput');
+
+            // 3秒后启动界面淡出，显示登录界面
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    if (splash) {
+                        splash.classList.add('fade-out');
+                        setTimeout(() => {
+                            if (splash.parentNode) splash.style.display = 'none';
+                            loginContainer.classList.add('visible');
+                        }, 800);
+                    } else {
+                        loginContainer.classList.add('visible');
+                    }
+                }, 3000);
+            });
+
+            // 密码验证（固定密码：SXL1224）
+            if (loginForm) {
+                loginForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const pwd = pwdInput ? pwdInput.value.trim() : '';
+                    if (pwd === 'SXL1224') {
+                        // 登录成功：隐藏登录层，显示主程序
+                        loginContainer.style.transition = 'opacity 0.6s ease';
+                        loginContainer.style.opacity = '0';
+                        setTimeout(() => {
+                            loginContainer.style.display = 'none';
+                            mainWrapper.classList.add('visible');
+                            // 主程序展示后，重新激活部分交互（确保工具栏状态与图片上传不冲突）
+                            const toolbar = document.getElementById('toolbar');
+                            if (toolbar) {
+                                toolbar.style.opacity = '1';
+                                toolbar.style.pointerEvents = 'auto';
+                            }
+                        }, 500);
+                    } else {
+                        alert('密码错误，请重试。\n🔐 安全密钥为: SXL1224');
+                        if (pwdInput) { pwdInput.value = ''; pwdInput.focus(); }
+                    }
+                });
+            }
+        })();
+
+        // ========= 以下为原主程序全部脚本 (未改动任何业务逻辑) =========
+        // 细菌数据库
+        const BACTERIA_DB = [
+            { name: "金黄色葡萄球菌", gram: "G+", morph: "coccus", minW: 0.5, maxW: 1.0, minL: 0.5, maxL: 1.0, info: "典型葡萄串状排列。常引起化脓性感染、食物中毒。" },
+            { name: "大肠埃希菌", gram: "G-", morph: "bacillus", minW: 0.4, maxW: 0.7, minL: 1.0, maxL: 3.0, info: "两端钝圆的短小杆菌。肠道正常菌群，条件致病。" },
+            { name: "肺炎链球菌", gram: "G+", morph: "diplococcus", minW: 0.5, maxW: 1.2, minL: 0.5, maxL: 1.2, info: "矛头状成对排列，宽端相对。体内形成厚荚膜。" },
+            { name: "淋病奈瑟菌", gram: "G-", morph: "diplococcus", minW: 0.6, maxW: 0.8, minL: 0.6, maxL: 0.8, info: "咖啡豆状成对排列，凹面相对。引起泌尿生殖道化脓。" },
+            { name: "霍乱弧菌", gram: "G-", morph: "vibrio", minW: 0.3, maxW: 0.5, minL: 1.5, maxL: 3.0, info: "弧形或逗点状，排列如鱼群。单鞭毛，运动活泼。" },
+            { name: "枯草芽孢杆菌", gram: "G+", morph: "bacillus", minW: 0.7, maxW: 0.8, minL: 2.0, maxL: 3.0, info: "大型直杆菌，有内生芽孢。环境中广泛存在。" },
+            { name: "化脓性链球菌", gram: "G+", morph: "chain", minW: 0.5, maxW: 1.0, minL: 0.5, maxL: 1.0, info: "长短不一的链状排列。引起咽炎及风湿热。" },
+            { name: "铜绿假单胞菌", gram: "G-", morph: "bacillus", minW: 0.5, maxW: 0.8, minL: 1.5, maxL: 3.0, info: "细长杆菌，常有绿色色素。医院感染重要病原菌。" },
+            { name: "粪肠球菌", gram: "G+", morph: "diplococcus", minW: 0.6, maxW: 2.0, minL: 0.6, maxL: 2.0, info: "圆形或椭圆形，成对或短链状。可引起尿路感染。" }
+        ];
+
+        // 视口与交互变量
+        const viewer = document.getElementById('viewerContainer');
+        const wrapper = document.getElementById('imgWrapper');
+        const img = document.getElementById('previewImg');
+        let hasImage = false, isPickerMode = false;
+        let scale = 1, translateX = 0, translateY = 0, isDragging = false, startX, startY;
+
+        // 图像加载
+        function handleImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                img.src = event.target.result;
+                img.onload = function() {
+                    hasImage = true;
+                    viewer.classList.add('has-image');
+                    document.getElementById('uploadHint').style.display = 'none';
+                    wrapper.style.display = 'block';
+                    document.getElementById('toolbar').style.opacity = '1';
+                    document.getElementById('toolbar').style.pointerEvents = 'auto';
+                    
+                    const ratio = Math.min(viewer.clientWidth / img.naturalWidth, viewer.clientHeight / img.naturalHeight);
+                    img.style.width = (img.naturalWidth * ratio * 0.8) + 'px';
+                    resetView(); analyzeColorFull(img);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateTransform() { wrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`; document.getElementById('zoomSlider').value = scale; }
+        function setZoom(val) { scale = parseFloat(val); updateTransform(); }
+        function changeZoom(delta) { scale = Math.max(0.1, Math.min(8, scale + delta)); updateTransform(); }
+        function resetView() { scale = 1; translateX = 0; translateY = 0; updateTransform(); }
+
+        viewer.addEventListener('mousedown', (e) => {
+            if (!hasImage || isPickerMode) return;
+            isDragging = true; startX = e.clientX - translateX; startY = e.clientY - translateY;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            translateX = e.clientX - startX; translateY = e.clientY - startY; updateTransform();
+        });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        viewer.addEventListener('mouseleave', () => { isDragging = false; });
+        viewer.addEventListener('wheel', (e) => {
+            if (!hasImage) return; e.preventDefault(); changeZoom(e.deltaY > 0 ? -0.15 : 0.15);
+        });
+
+        function togglePickerMode() {
+            if(!hasImage) return;
+            isPickerMode = !isPickerMode;
+            const btn = document.getElementById('pickerBtn');
+            if(isPickerMode) { btn.classList.add('active'); viewer.classList.add('picker-mode'); } 
+            else { btn.classList.remove('active'); viewer.classList.remove('picker-mode'); }
+        }
+
+        function handleViewerClick(e) { if (!hasImage && e.target === viewer) document.getElementById('fileInput').click(); }
+
+        img.addEventListener('click', function(e) {
+            if (!isPickerMode) return;
+            const rect = img.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) * (img.naturalWidth / rect.width));
+            const y = Math.floor((e.clientY - rect.top) * (img.naturalHeight / rect.height));
+            analyzeColorAtPoint(x, y); togglePickerMode();
+        });
+
+        function analyzeColorFull(imageObj) {
+            const canvas = document.getElementById('calcCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = imageObj.naturalWidth; canvas.height = imageObj.naturalHeight;
+            ctx.drawImage(imageObj, 0, 0);
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            let pCount = 0, rCount = 0;
+            for (let i = 0; i < data.length; i += 40) { 
+                const r = data[i], g = data[i+1], b = data[i+2];
+                if ((r+g+b) > 650 || (r+g+b) < 80) continue; 
+                if (b > g + 5 && r > g + 5 && b > 80) pCount++; else if (r > g + 25 && r > b + 10) rCount++; 
+            }
+            evaluateColorResult(pCount, rCount, "全图扫描");
+        }
+
+        function analyzeColorAtPoint(cx, cy) {
+            const canvas = document.getElementById('calcCanvas');
+            const ctx = canvas.getContext('2d');
+            const r = 5;
+            const startX = Math.max(0, cx - r), startY = Math.max(0, cy - r);
+            const width = Math.min(canvas.width - startX, r * 2);
+            const height = Math.min(canvas.height - startY, r * 2);
+            const data = ctx.getImageData(startX, startY, width, height).data;
+            let pCount = 0, rCount = 0, avgR = 0, avgG = 0, avgB = 0, v = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                avgR+=data[i]; avgG+=data[i+1]; avgB+=data[i+2]; v++;
+                if (data[i+2] > data[i+1] && data[i] > data[i+1]) pCount++; else if (data[i] > data[i+1] && data[i] > data[i+2]) rCount++;
+            }
+            if(v > 0) {
+                document.getElementById('colorPatch').style.display = 'inline-block';
+                document.getElementById('colorPatch').style.background = `rgb(${Math.round(avgR/v)},${Math.round(avgG/v)},${Math.round(avgB/v)})`;
+            }
+            evaluateColorResult(pCount, rCount, "精准定点");
+        }
+
+        function evaluateColorResult(p, r, method) {
+            const indicator = document.getElementById('colorIndicator'), text = document.getElementById('colorText'), select = document.getElementById('detectedGram');
+            if (p === 0 && r === 0) {
+                indicator.style.background = "#f8fafc"; indicator.style.color = "#64748b"; text.innerHTML = `未检测到明显染色`; select.value = "";
+            } else if (p >= r) {
+                indicator.style.background = "#ede9fe"; indicator.style.color = "#8b5cf6"; text.innerHTML = `判定: 阳性 G+ (${method})`; select.value = "G+";
+            } else {
+                indicator.style.background = "#fee2e2"; indicator.style.color = "#ef4444"; text.innerHTML = `判定: 阴性 G- (${method})`; select.value = "G-";
+            }
+        }
+
+        function checkSizeWarning() {
+            const w = parseFloat(document.getElementById('inputWidth').value);
+            const l = parseFloat(document.getElementById('inputLength').value);
+            const warningBox = document.getElementById('sizeWarning');
+            if (w > 10 || l > 20 || w < 0.1 || l < 0.1) {
+                warningBox.style.display = 'block';
+            } else {
+                warningBox.style.display = 'none';
+            }
+        }
+
+        function startComparison() {
+            const userGram = document.getElementById('detectedGram').value;
+            const userMorph = document.getElementById('inputMorph').value;
+            const userW = parseFloat(document.getElementById('inputWidth').value) || 0;
+            let userL = parseFloat(document.getElementById('inputLength').value);
+            if (isNaN(userL)) userL = (userMorph.includes('coccus') || userMorph === 'chain') ? userW : 0; 
+            if (!userGram) { alert("请确认染色属性！"); return; }
+
+            let matches = BACTERIA_DB.map(bac => {
+                let score = 0;
+                if (bac.gram === userGram) score += 50;
+                if (bac.morph === userMorph) score += 35;
+                if (userW > 0) {
+                    if (userW >= bac.minW && userW <= bac.maxW) score += 7.5;
+                    else if (Math.abs(userW - bac.minW) < 0.3 || Math.abs(userW - bac.maxW) < 0.3) score += 3; 
+                    if (userL >= bac.minL && userL <= bac.maxL) score += 7.5;
+                    else if (Math.abs(userL - bac.minL) < 0.5 || Math.abs(userL - bac.maxL) < 0.5) score += 3;
+                } else { score += 15; }
+                return { ...bac, score: Math.round(score) };
+            });
+
+            matches.sort((a, b) => b.score - a.score);
+            renderResults(matches.slice(0, 3));
+            document.getElementById('printBtn').disabled = false;
+        }
+
+        function renderResults(data) {
+            const list = document.getElementById('resultList');
+            list.innerHTML = "";
+            data.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = `
+                    <div class="result-header">
+                        <div>
+                            <div class="bac-name">${index === 0 ? '🏆 最优匹配: ' : ''}${item.name}</div>
+                            <span class="tag ${item.gram === 'G+' ? 'tag-g-pos' : 'tag-g-neg'}">${item.gram === 'G+' ? 'G+' : 'G-'}</span>
+                        </div>
+                        <div class="score-text" style="color: ${item.score > 80 ? 'var(--success)' : '#f59e0b'};">${item.score}%</div>
+                    </div>
+                    <div class="bac-details"><strong>尺寸:</strong> ${item.minW}-${item.maxW} × ${item.minL}-${item.maxL} µm<br><strong>特征:</strong> ${item.info}</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
